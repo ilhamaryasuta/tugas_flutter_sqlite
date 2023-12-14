@@ -13,7 +13,7 @@ Future main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -28,7 +28,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({Key? key}) : super(key: key);
+  const MyHomePage({super.key});
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
@@ -36,6 +36,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   late List<User> _userList = <User>[];
   final _userService = UserService();
+  Key _refreshKey = UniqueKey();
   getAllUserDetails() async {
     var users = await _userService.readAllUsers();
     _userList = <User>[];
@@ -45,11 +46,16 @@ class _MyHomePageState extends State<MyHomePage> {
         userModel.id = user['id'];
         userModel.name = user['name'];
         userModel.contact = user['contact'];
+        userModel.address = user['address'];
         userModel.description = user['description'];
         _userList.add(userModel);
       });
     });
   }
+
+  void _handleUserDataChanged() => setState(() {
+        _refreshKey = UniqueKey();
+      });
 
   @override
   void initState() {
@@ -76,22 +82,20 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             actions: [
               TextButton(
-                  style: TextButton.styleFrom(
-                      primary: Colors.white, // foreground
-                      backgroundColor: Colors.red),
+                  style: TextButton.styleFrom(foregroundColor: Colors.white, backgroundColor: Colors.red),
                   onPressed: () async {
                     var result = await _userService.deleteUser(userId);
                     if (result != null) {
-                      Navigator.pop(context);
                       getAllUserDetails();
                       _showSuccessSnackBar('User Detail Deleted Success');
+                      _handleUserDataChanged();
+                      if (!context.mounted) return;
+                      Navigator.pop(context);
                     }
                   },
                   child: const Text('Delete')),
               TextButton(
-                  style: TextButton.styleFrom(
-                      primary: Colors.white, // foreground
-                      backgroundColor: Colors.teal),
+                  style: TextButton.styleFrom(foregroundColor: Colors.white, backgroundColor: Colors.teal),
                   onPressed: () {
                     Navigator.pop(context);
                   },
@@ -104,6 +108,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _refreshKey,
       appBar: AppBar(
         title: const Text("SQLite CRUD"),
       ),
@@ -112,14 +117,6 @@ class _MyHomePageState extends State<MyHomePage> {
           itemBuilder: (context, index) {
             return Card(
               child: ListTile(
-                onTap: () {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => ViewUser(
-                                user: _userList[index],
-                              )));
-                },
                 leading: const Icon(Icons.person),
                 title: Text(_userList[index].name ?? ''),
                 subtitle: Text(_userList[index].contact ?? ''),
@@ -131,16 +128,26 @@ class _MyHomePageState extends State<MyHomePage> {
                           Navigator.push(
                               context,
                               MaterialPageRoute(
+                                  builder: (context) => ViewUser(
+                                        user: _userList[index],
+                                      )));
+                        },
+                        icon: const Icon(
+                          Icons.info,
+                        )),
+                    IconButton(
+                        onPressed: () {
+                          Navigator.push(
+                              context,
+                              MaterialPageRoute(
                                   builder: (context) => EditUser(
                                         user: _userList[index],
                                       ))).then((data) {
                             if (data != null) {
                               getAllUserDetails();
-                              _showSuccessSnackBar(
-                                  'User Detail Updated Success');
+                              _showSuccessSnackBar('User Detail Updated Success');
                             }
                           });
-                          ;
                         },
                         icon: const Icon(
                           Icons.edit,
@@ -161,12 +168,11 @@ class _MyHomePageState extends State<MyHomePage> {
           }),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => const AddUser()))
-              .then((data) {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const AddUser())).then((data) {
             if (data != null) {
               getAllUserDetails();
               _showSuccessSnackBar('User Detail Added Success');
+              _handleUserDataChanged();
             }
           });
         },
